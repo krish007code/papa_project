@@ -1,0 +1,7 @@
+.venv/
+daily/*.xlsx
+monthly/*.xlsx
+permanent/*.xlsx
+__pycache__/
+*.pyc
+.env
