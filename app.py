@@ -30,7 +30,7 @@ with col1:
         help="BA_OA_UP_WEST_LIST.xlsx — never changes",
     )
     monthly_file = st.file_uploader(
-        "📅 AMCGP Data",
+        "📅 AMC GP Data",
         type="xlsx",
         help="AMC_GP_Status_June_26_*.xlsx — updated monthly",
     )
