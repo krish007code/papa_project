@@ -17,7 +17,7 @@ st.set_page_config(
 )
 
 st.title("OLT Down Report Generator")
-st.caption("Upload the three required Excel files and click **Generate Report**.")
+st.caption("Upload the four required Excel files and click **Generate Report**.")
 
 st.divider()
 
@@ -41,11 +41,17 @@ with col2:
         type="xlsx",
         help="report_<id>_<date>.xlsx — downloaded every day",
     )
-    generated_by = st.text_input("👤 Username", value="bsupwag2")
+    daily2_file = st.file_uploader(
+        "📋 Daily report 2 file",
+        type="xlsx",
+        help="report_<id>_<date>.xlsx — second daily report",
+    )
+
+generated_by = st.text_input("👤 Username", value="bsupwag2")
 
 st.divider()
 
-all_uploaded = permanent_file and monthly_file and daily_file
+all_uploaded = permanent_file and monthly_file and daily_file and daily2_file
 
 if st.button("⚙️ Generate Report", disabled=not all_uploaded, type="primary"):
     with st.spinner("Processing…"):
@@ -54,6 +60,7 @@ if st.button("⚙️ Generate Report", disabled=not all_uploaded, type="primary"
                 permanent_path=io.BytesIO(permanent_file.read()),
                 monthly_path=io.BytesIO(monthly_file.read()),
                 daily_path=io.BytesIO(daily_file.read()),
+                daily_path2=io.BytesIO(daily2_file.read()),
                 now=datetime.now(),
                 generated_by=generated_by,
             )
@@ -74,4 +81,4 @@ if st.button("⚙️ Generate Report", disabled=not all_uploaded, type="primary"
             raise
 
 if not all_uploaded:
-    st.info("⬆️ Upload all three files above to enable the Generate button.")
+    st.info("⬆️ Upload all four files above to enable the Generate button.")

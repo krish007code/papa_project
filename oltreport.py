@@ -1,17 +1,3 @@
-"""
-OLT Down Report Generator
-=========================
-Core logic is in `generate_report()` — call it from Streamlit, a CLI,
-a GUI, or any other entry point.
-
-Folder structure (default, can be overridden via arguments):
-  permanent/   → BA_OA_UP_WEST_LIST.xlsx          (never changes)
-  monthly/     → AMC_GP_Status_June_26_*.xlsx      (updated monthly)
-  daily/       → report_<id>_<date>.xlsx           (downloaded every day)
-
-Output: bytes object (Excel file) — caller decides where to save it.
-"""
-
 import glob
 import io
 from datetime import datetime
@@ -62,24 +48,10 @@ def generate_report(
     permanent_path: str | Path | io.BytesIO,
     monthly_path:   str | Path | io.BytesIO,
     daily_path:     str | Path | io.BytesIO,
+    daily_path2:    str | Path | io.BytesIO,
     now:            datetime | None = None,
     generated_by:   str = "bsupwag2",
 ) -> bytes:
-    """
-    Generate the OLT Down Report Excel file.
-
-    Parameters
-    ----------
-    permanent_path : path or file-like object for BA_OA_UP_WEST_LIST.xlsx
-    monthly_path   : path or file-like object for AMC_GP_Status monthly xlsx
-    daily_path     : path or file-like object for the daily report xlsx
-    now            : datetime to use as "current time" (defaults to datetime.now())
-    generated_by   : username shown in the footer
-
-    Returns
-    -------
-    bytes : the Excel workbook as raw bytes — write to disk or send via HTTP.
-    """
     now = now or datetime.now()
 
     # ── 1. BA / OA mapping ────────────────────────────────────────────────────
@@ -91,7 +63,6 @@ def generate_report(
         .assign(BLOCK=lambda d: d["BLOCK"].str.strip().str.upper())
         .drop_duplicates(subset=["BLOCK"])
     )
-
     # ── 2. Daily report ───────────────────────────────────────────────────────
     report = pd.read_excel(daily_path, skiprows=3, dtype=str)
     report.columns = report.columns.str.strip()
@@ -149,7 +120,38 @@ def generate_report(
     final["No of AMC GPs"] = (
         pd.to_numeric(final["No of AMC GPs"], errors="coerce").fillna(0).astype(int)
     )
-    final["No of GPs Unknown previously UP"] = ""
+
+    # ── 6.5 Count GPs with Unknown Previous UP status from daily2 file ───────
+    daily2_raw = pd.read_excel(daily_path2, skiprows=3, dtype=str)
+    daily2_raw.columns = daily2_raw.columns.str.strip()
+    
+    # Filter for UNKNOWN PREV UP status
+    unknown_gps = (
+        daily2_raw[daily2_raw["GP STATUS"].str.strip().str.upper() == "UNKNOWN PREV UP"]
+        .copy()
+    )
+    
+    # Count by OLT IP
+    if not unknown_gps.empty:
+        unknown_gp_count = (
+            unknown_gps.groupby("OLT IP", as_index=False)
+            .size()
+            .rename(columns={"size": "No of GPs Unknown previously UP"})
+        )
+        unknown_gp_count["OLT IP"] = unknown_gp_count["OLT IP"].astype(str).str.strip()
+    else:
+        unknown_gp_count = pd.DataFrame(columns=["OLT IP", "No of GPs Unknown previously UP"])
+    
+    # Join unknown GP count on BLOCK NODE IP
+    final["_OLT_KEY"] = final["BLOCK NODE IP"].astype(str).str.strip()
+    final = final.merge(
+        unknown_gp_count.rename(columns={"OLT IP": "_OLT_KEY"}),
+        on="_OLT_KEY", how="left",
+    )
+    final.drop(columns=["_OLT_KEY"], inplace=True)
+    final["No of GPs Unknown previously UP"] = (
+        pd.to_numeric(final["No of GPs Unknown previously UP"], errors="coerce").fillna(0).astype(int)
+    )
 
     # ── 7. Select and order final columns ────────────────────────────────────
     OUTPUT_COLS = [
@@ -276,12 +278,15 @@ def main():
     permanent_path = _find_file(base, "permanent", "BA_OA_UP_WEST_LIST.xlsx")
     monthly_path   = _find_file(base, "monthly",   "AMC_GP_Status_June_26*.xlsx")
     daily_path     = _find_file(base, "daily",     "report_*.xlsx")
+    daily_path2 = _find_file(base, "daily2",    "report_*.xlsx")
 
     print(f"[+] Permanent : {permanent_path.name}")
     print(f"[+] Monthly   : {monthly_path.name}")
     print(f"[+] Daily     : {daily_path.name}")
+    print(f"[+] Daily2     : {daily_path2.name}")
+    
 
-    excel_bytes = generate_report(permanent_path, monthly_path, daily_path, now=now)
+    excel_bytes = generate_report(permanent_path, monthly_path, daily_path, daily_path2, now=now)
 
     out_path = base / "daily" / f"OLT_Down_Report_{now.strftime('%Y-%m-%d')}.xlsx"
     out_path.write_bytes(excel_bytes)
