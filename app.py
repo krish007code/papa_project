@@ -25,24 +25,24 @@ col1, col2 = st.columns(2)
 
 with col1:
     permanent_file = st.file_uploader(
-        "🗂️ Permanent file",
+        "🗂️  BA OA Data",
         type="xlsx",
         help="BA_OA_UP_WEST_LIST.xlsx — never changes",
     )
     monthly_file = st.file_uploader(
-        "📅 Monthly file",
+        "📅 AMCGP Data",
         type="xlsx",
         help="AMC_GP_Status_June_26_*.xlsx — updated monthly",
     )
 
 with col2:
     daily_file = st.file_uploader(
-        "📋 Daily report file",
+        "📋NMS DAILY OLT down report",
         type="xlsx",
         help="report_<id>_<date>.xlsx — downloaded every day",
     )
     daily2_file = st.file_uploader(
-        "📋 Daily report 2 file",
+        "📋 NMS DAILY GP status report",
         type="xlsx",
         help="report_<id>_<date>.xlsx — second daily report",
     )
